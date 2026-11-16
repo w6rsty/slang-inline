@@ -1,0 +1,19 @@
+[package]
+name = "slang-inline-injected-shader"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+default = ["build-check"]
+build-check = ["slang-inline/build-check"]
+
+[dependencies]
+slang-inline = { path = "../../macro", default-features = false }
+
+[build-dependencies]
+slang-inline = { path = "../../macro", default-features = false }
+
+[[bin]]
+name = "injected_shader"
+path = "src/main.rs"

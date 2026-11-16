@@ -1,6 +1,6 @@
 # slang-inline
 
-Write Slang inside Rust and get diagnostics, completion, and hover from `slangd` in VS Code. The Rust macros produce static source text and fragment metadata. Slang analysis runs in the editor.
+Write Slang inside Rust and get diagnostics, completion, and hover from `slangd` in VS Code. The Rust macros produce static source text and fragment metadata. A Cargo build script can also check registered shaders with `slangc`.
 
 ```rust
 use slang_inline::{SlangSource, slang_inline};
@@ -20,16 +20,16 @@ slang-inline = { path = "../slang-inline/macro" }
 
 ## Install the Windows extension
 
-The VSIX targets Windows x64 and includes the Rust bridge. Use VS Code 1.85 or newer and make `slangd.exe` available on `PATH`, for example through the Vulkan SDK. You can also set `slangdInline.slangdPath` to its absolute path in your VS Code user settings.
+The VSIX targets Windows x64 and includes the Rust bridge. Use VS Code 1.85 or newer and make `slangd.exe` available on `PATH`, for example through the Vulkan SDK. You can also set `slang-inline.slangdPath` to its absolute path in your VS Code user settings.
 
 Build the package from the repository root with PowerShell and the `x86_64-pc-windows-msvc` Rust toolchain. The script builds the release bridge and writes the VSIX to `target/vsix`. Use `-Offline` when the Cargo dependencies are already cached.
 
 ```powershell
 .\scripts\package-vsix.ps1
-code --install-extension .\target\vsix\slang-inline-0.1.0-win32-x64.vsix
+code --install-extension .\target\vsix\slang-inline-0.1.1-win32-x64.vsix
 ```
 
-You can also choose **Extensions: Install from VSIX...** in the Command Palette. Bridge and language server output appears in the **Slang Inline Diagnostics** channel. `slangdInline.bridgePath` can override the bundled bridge.
+You can also choose **Extensions: Install from VSIX...** in the Command Palette. Bridge and language server output appears in the **Slang Inline Diagnostics** channel. `slang-inline.bridgePath` can override the bundled bridge. When upgrading to 0.1.1, update any custom extension settings to use the `slang-inline.` prefix and any custom composition keybinding to use `slang-inline.selectComposition`.
 
 ## Include Rust declarations
 
@@ -72,19 +72,67 @@ Open a fragment's Rust file to analyze it with its assembled Slang declarations.
 
 When a fragment belongs to multiple shaders, run **Slang Inline: Select Composition** in the Command Palette. Entries show the constant name when available, along with the Rust file and line of the composition. The default is the first matching final composition in file-and-source order. A selection applies to the matching fragments in the active file for the current bridge session.
 
-For a working example, open only `macro/examples/injected_shader/surface.rs`. Completion after `material.` shows `roughness` and `metallic` in the default composition. Select the second composition in `main.rs` to see `specular` as well. Run the example to print the assembled source. Pass `-- --detail` for the second shader.
+For a working example, open only `examples/injected_shader/src/surface.rs`. Completion after `material.` shows `roughness` and `metallic` in the default composition. Select `DETAILED_SHADER` in `shaders.rs` to see `specular` as well. Run the example to print the assembled source. Pass `-- --detail` for the second shader.
 
 ```powershell
-cargo run --locked -p slang-inline --example injected_shader
+cargo run --locked -p slang-inline-injected-shader
+```
+
+## Check shaders during a Cargo build
+
+The `build-check` feature is enabled by default. It exposes `slang_inline::build::check` for build scripts. A package registers its final `SlangSource` values in `build.rs` and enables the check through its own Cargo feature. Add `slang-inline` as a build dependency and load the same Rust shader modules used by the package.
+
+```toml
+[features]
+default = ["build-check"]
+build-check = ["slang-inline/build-check"]
+
+[build-dependencies]
+slang-inline = { path = "../slang-inline/macro", default-features = false }
+```
+
+```rust
+#[cfg(feature = "build-check")]
+#[path = "src/shaders.rs"]
+mod shaders;
+
+fn main() {
+    #[cfg(feature = "build-check")]
+    {
+        use slang_inline::build::{Shader, check};
+        use std::path::Path;
+
+        let shaders = [Shader {
+            name: "SHADER",
+            source: shaders::SHADER,
+            directory: Path::new("src"),
+        }];
+        if let Err(error) = check(&shaders, &[Path::new("shared_shaders")]) {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    }
+}
+```
+
+The check runs `slangc -no-codegen` on saved sources. Use a Slang SDK with support for `-enable-machine-readable-diagnostics` and `-output-includes`. Set `SLANGC` to the executable path or put `slangc` on `PATH`. The compiler resolves dependencies from the shader's directory and the supplied search directories. Cargo tracks those inputs and the dependencies reported by Slang.
+
+Slang errors stop `cargo check`, `cargo build`, and `cargo run` for the package. Warnings are displayed and the build continues. Inline diagnostics report the original Rust file and position. Diagnostics in strings from an `include` header show the Rust constant path and the position within its string.
+
+The `slang-inline-injected-shader` package owns the `injected_shader` binary and registers both final compositions. In VS Code, use the rust-analyzer **Run** action above `main` in `examples/injected_shader/src/main.rs` to build and run the same target. Set `--no-default-features` to run it with the check disabled.
+
+```powershell
+cargo check --locked -p slang-inline-injected-shader
+cargo check --locked -p slang-inline-injected-shader --no-default-features
 ```
 
 ## Configure Slang file dependencies
 
-Use `slangdInline.searchPaths` for Slang imports and includes. Relative paths resolve from each VS Code workspace folder.
+Use `slang-inline.searchPaths` for Slang imports and includes. Relative paths resolve from each VS Code workspace folder.
 
 ```json
 {
-  "slangdInline.searchPaths": ["shaders", "../shared/shaders"]
+  "slang-inline.searchPaths": ["shaders", "../shared/shaders"]
 }
 ```
 
@@ -105,9 +153,10 @@ Open `macro/examples/diagnostics.rs`. Fix the missing semicolon in `broken` to c
 cargo check --locked -p slang-inline --example diagnostics
 cargo test --locked --workspace --all-targets
 node tests/bridge.mjs
+node tests/build-check.mjs
 ```
 
-The Node.js integration test uses a built debug bridge and a real `slangd`. It covers diagnostics, dependency changes, completion, hover, included Rust constants, and composition discovery and selection. To test a particular server executable, pass its path after `tests/bridge.mjs`. Set `SLANG_INLINE_BRIDGE` to the absolute path of a different bridge executable, such as the one installed from the VSIX.
+The bridge integration test uses a built debug bridge and a real `slangd`. It covers diagnostics, dependency changes, completion, hover, included Rust constants, and composition discovery and selection. To test a particular server executable, pass its path after `tests/bridge.mjs`. Set `SLANG_INLINE_BRIDGE` to the absolute path of a different bridge executable, such as the one installed from the VSIX. The build-check integration test uses a real `slangc` and verifies the default feature, dependency changes, and failure diagnostics.
 
 ## Editor resolution limits
 

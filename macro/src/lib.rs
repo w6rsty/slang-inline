@@ -1,9 +1,13 @@
 //! Const-capable Slang source fragments for use in Rust.
 //!
 //! The macros produce text and source metadata. The VS Code extension runs
-//! Slang analysis in the editor.
+//! Slang analysis in the editor. Build scripts can check complete shader
+//! sources with the default `build-check` feature.
 
 use std::ops::Range;
+
+#[cfg(feature = "build-check")]
+pub mod build;
 
 pub use slang_inline_macros::slang_concat;
 

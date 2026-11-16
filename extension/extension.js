@@ -4,6 +4,7 @@ const path = require("node:path");
 const readline = require("node:readline");
 const vscode = require("vscode");
 const { toRange, toCompletionList, toHover } = require("./language-features");
+const { name: namespace } = require("./package.json");
 
 const dependencyExtensions = ["slang", "slangh", "hlsl", "hlsli", "h", "inc"];
 const dependencyGlob = `**/*.{${dependencyExtensions.join(",")}}`;
@@ -19,7 +20,7 @@ function hasSlang(document) {
 }
 
 function activate(context) {
-    const diagnostics = vscode.languages.createDiagnosticCollection("slang-inline");
+    const diagnostics = vscode.languages.createDiagnosticCollection(namespace);
     const log = vscode.window.createOutputChannel("Slang Inline Diagnostics");
     const pending = new Map();
     const revisions = new Map();
@@ -85,7 +86,7 @@ function activate(context) {
     }
 
     function startBridge() {
-        const config = vscode.workspace.getConfiguration("slangdInline");
+        const config = vscode.workspace.getConfiguration(namespace);
         const program = process.platform === "win32"
             ? "slang-inline-bridge.exe"
             : "slang-inline-bridge";
@@ -189,7 +190,7 @@ function activate(context) {
                         toRange(range), message,
                         severity == null ? vscode.DiagnosticSeverity.Error : severity - 1,
                     );
-                    item.source = "slang-inline";
+                    item.source = namespace;
                     item.code = code ?? undefined;
                     items.push(item);
                 }
@@ -370,7 +371,7 @@ function activate(context) {
         { dispose: stopBridge },
         diagnostics,
         log,
-        vscode.commands.registerCommand("slangInline.selectComposition", selectComposition),
+        vscode.commands.registerCommand(`${namespace}.selectComposition`, selectComposition),
         vscode.languages.registerCompletionItemProvider({ language: "rust", scheme: "file" }, {
             async provideCompletionItems(document, position, token, context) {
                 return toCompletionList(await query(document, position, token, "completion", {
@@ -402,7 +403,7 @@ function activate(context) {
         }),
         vscode.workspace.onDidChangeWorkspaceFolders(restartBridge),
         vscode.workspace.onDidChangeConfiguration((event) => {
-            if (event.affectsConfiguration("slangdInline")) restartBridge();
+            if (event.affectsConfiguration(namespace)) restartBridge();
         }),
     );
     vscode.workspace.textDocuments.forEach(schedule);

@@ -102,6 +102,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "slang-inline-injected-shader"
+version = "0.1.0"
+dependencies = [
+ "slang-inline",
+]
+
+[[package]]
 name = "slang-inline-macros"
 version = "0.1.0"
 dependencies = [

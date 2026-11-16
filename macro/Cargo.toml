@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+[features]
+default = ["build-check"]
+build-check = []
+
 [dependencies]
 slang-inline-macros = { path = "proc-macro" }
