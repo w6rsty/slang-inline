@@ -1,0 +1,16 @@
+[package]
+name = "slang-inline-bridge"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+proc-macro2 = { version = "1", features = ["span-locations"] }
+percent-encoding = "2"
+syn = { version = "3", features = ["full"] }
+unicode-ident = "1"
+
+[dev-dependencies]
+slang-inline = { path = "../macro" }

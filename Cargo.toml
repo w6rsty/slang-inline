@@ -1,0 +1,3 @@
+[workspace]
+members = ["macro", "macro/proc-macro", "bridge"]
+resolver = "3"

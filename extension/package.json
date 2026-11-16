@@ -1,0 +1,46 @@
+{
+  "name": "slang-inline",
+  "displayName": "Slang Inline Diagnostics",
+  "description": "Slang diagnostics, completion, and hover inside Rust slang_inline! blocks.",
+  "version": "0.1.0",
+  "publisher": "slang-inline-dev",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:rust"],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": false },
+    "virtualWorkspaces": { "supported": false }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "slangInline.selectComposition",
+        "title": "Slang Inline: Select Composition"
+      }
+    ],
+    "configuration": {
+      "title": "Slang Inline Diagnostics",
+      "properties": {
+        "slangdInline.slangdPath": {
+          "type": "string",
+          "scope": "machine",
+          "default": "slangd",
+          "description": "Path to the slangd executable or a command found on PATH."
+        },
+        "slangdInline.bridgePath": {
+          "type": "string",
+          "scope": "machine",
+          "default": "",
+          "description": "Path to the bridge executable. Leave empty to use the bundled bridge or the local Cargo debug build."
+        },
+        "slangdInline.searchPaths": {
+          "type": "array",
+          "scope": "window",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional directories for Slang imports and includes. Relative paths resolve from each workspace folder."
+        }
+      }
+    }
+  }
+}

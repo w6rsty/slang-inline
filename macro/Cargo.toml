@@ -1,0 +1,8 @@
+[package]
+name = "slang-inline"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+slang-inline-macros = { path = "proc-macro" }
