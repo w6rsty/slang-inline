@@ -5,7 +5,25 @@
 
 use std::ops::Range;
 
-pub use slang_inline_macros::{slang_concat, slang_inline};
+pub use slang_inline_macros::slang_concat;
+
+/// Bare blocks require the exact source text during compilation. Use a raw
+/// string when a macro generates an invocation with interpolated tokens.
+///
+/// ```compile_fail,E0080
+/// use slang_inline::slang_inline;
+///
+/// macro_rules! shader {
+///     ($value:literal) => {
+///         slang_inline! { float wave() { return $value; } }
+///     };
+/// }
+///
+/// fn never_called() {
+///     let _ = shader!(7);
+/// }
+/// ```
+pub use slang_inline_macros::slang_inline;
 
 /// Static Slang text and the provenance of each fragment that contributed to it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

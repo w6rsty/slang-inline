@@ -1,5 +1,5 @@
 use proc_macro::{Delimiter, Group, Span, TokenStream, TokenTree};
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use syn::{LitStr, Path, Token};
@@ -31,6 +31,7 @@ pub fn slang_inline(source: TokenStream) -> TokenStream {
     };
 
     let invocation = Span::call_site();
+    let mut recovery_check = None;
     let (body, file, line, column) = if let Some(body) = raw_body(tail.clone()) {
         let prefix = body.token().to_string().find('"').map_or(0, |quote| quote + 1);
         let origin = body.span().unwrap();
@@ -38,12 +39,19 @@ pub fn slang_inline(source: TokenStream) -> TokenStream {
     } else if let Some((body, line, column)) = bare_body(invocation, header.as_ref(), &tail) {
         (LitStr::new(&body, invocation.into()), invocation.file(), line, column)
     } else {
-        return syn::Error::new(
-            invocation.into(),
-            "could not recover the original Slang text. Write the block directly in a Rust file or use a raw string",
+        // rust-analyzer can expand the macro without the original source text.
+        // Give it a typed expression. rustc evaluates the anonymous const even
+        // when the surrounding expression is unused, so no placeholder is built.
+        let span = invocation.into();
+        let message =
+            "could not recover the original Slang text. Write the block directly in a Rust file or use a raw string";
+        recovery_check = Some(quote_spanned! {span=> const _: () = ::core::panic!(#message); });
+        (
+            LitStr::new("", span),
+            invocation.file(),
+            invocation.line(),
+            invocation.column(),
         )
-        .into_compile_error()
-        .into();
     };
     let imports = imports.into_iter().map(|path| {
         let value = module_value(&path);
@@ -58,13 +66,16 @@ pub fn slang_inline(source: TokenStream) -> TokenStream {
             origin: ::slang_inline::SlangOrigin::Injected { path: #symbol },
         })
     });
-    quote!(::slang_inline::__slang_inline_parts!(
-        #(#imports,)*
-        ::slang_inline::__private::Part {
-            text: #body,
-            origin: ::slang_inline::SlangOrigin::Inline { file: #file, line: #line, column: #column },
-        }
-    ))
+    quote!({
+        #recovery_check
+        ::slang_inline::__slang_inline_parts!(
+            #(#imports,)*
+            ::slang_inline::__private::Part {
+                text: #body,
+                origin: ::slang_inline::SlangOrigin::Inline { file: #file, line: #line, column: #column },
+            }
+        )
+    })
     .into()
 }
 

@@ -57,6 +57,8 @@ The declarations are joined in header order with one separator newline between f
 
 Bare bodies retain their comments and line breaks. Write the invocation directly in a Rust file and use Rust-compatible tokens and balanced delimiters. Use a raw body such as `slang_inline! { r#"..."# }` when preprocessor branches need to balance delimiters separately. A raw body can also follow an `include` header.
 
+The editor bridge reads the open Rust buffer directly. If rust-analyzer expands a bare block without access to the original text, it can still infer the result type. During a Cargo build, the macro requires the exact text for bare blocks. Use a raw body if a generated call fails with `could not recover the original Slang text`.
+
 ## Compose static sources
 
 `slang_concat!` joins `SlangSource` constants in order with one newline between inputs. Nested compositions preserve the original fragments. `as_str()` exposes the contiguous `&'static str` and `fragments()` exposes each fragment's byte range and origin. Inline origins carry a Rust source location, while included strings record the Rust constant path.
